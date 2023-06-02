@@ -1,0 +1,9 @@
+<resources>
+    <string name="app_name">4InARowGame</string>
+    <string name="buttonConnect">Connect to server</string>
+    <string name="textUsername">Username:</string>
+    <string name="editUsername"></string>
+    <string name="buttonName">Ok</string>
+    <string name="textChoose">Choose your rival</string>
+    <string name="buttonChoose">Choose rival</string>
+</resources>
