@@ -23,7 +23,7 @@ public class GameReceiveMessageFromServer implements Runnable {
     @Override
     public void run() {
         while (true) {
-            //0 -
+            //0 - get rival's moves
             //1 -
             switch (clientState) {
                 case 0:

@@ -6,6 +6,7 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import java.io.BufferedReader;
@@ -19,11 +20,14 @@ public class GameActivity extends AppCompatActivity {
     private BufferedReader br;
     private PrintWriter pw;
 
+    private boolean myTurn;
+
     private final int rows = 6;
     private final int columns = 7;
 
     HashMap<String, ImageView> fields;
     LinearLayout layoutFields;
+    TextView textTurn;
 
     public static String RESPONSE_MESSAGE = "Response_text";
     Intent intent;
@@ -35,7 +39,10 @@ public class GameActivity extends AppCompatActivity {
 
         intent = getIntent();
         String message = (String) intent.getExtras().getString(MainActivity.REQUEST_MESSAGE);
-        System.out.println(message);
+        if (message.equals("true"))
+            this.myTurn = true;
+        else
+            this.myTurn = false;
 
         //create new thread to react on server's messages
         new Thread(new GameReceiveMessageFromServer(GameActivity.this)).start();
@@ -61,6 +68,9 @@ public class GameActivity extends AppCompatActivity {
             }
             layoutFields.addView(llrow);
         }
+        textTurn = (TextView) findViewById(R.id.textTurn);
+        if (!myTurn)
+            textTurn.setText("Wait for your turn!");
     }
 
     public BufferedReader getBr() {

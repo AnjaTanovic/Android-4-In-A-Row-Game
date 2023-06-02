@@ -1,5 +1,7 @@
 package com.example.a4inarowgame;
 
+import android.app.AlertDialog;
+import android.content.DialogInterface;
 import android.widget.ArrayAdapter;
 import android.widget.Spinner;
 
@@ -10,85 +12,100 @@ public class MainReceiveMessageFromServer implements Runnable {
 
     MainActivity parent;
     BufferedReader br;
-    int clientState;
-    boolean myTurn;
+    String myTurn;
 
     public MainReceiveMessageFromServer(MainActivity parent) {
         this.parent = parent;
         this.br = parent.getBr();
-        this.clientState = 0;
-        myTurn = false;
+        myTurn = "false";
     }
 
     @Override
     public void run() {
         while (true) {
-            //0 - get all users
-            //1 - get rival's move
-            switch (clientState) {
-                case 0:
-                    try {
-                        String line = this.br.readLine();
+            try {
+                String line = this.br.readLine();
 
-                        if (line.startsWith("Users:")) {
-                            String[] names = line.split(":")[1].trim().split(" ");
-
-                            parent.runOnUiThread(new Runnable() {
-                                @Override
-                                public void run() {
-                                    // Clean Spinner
-                                    parent.getSpinnerUsers().setAdapter(null);
-                                    // Fill Spinner with new data (users)
-                                    Spinner spinner = parent.getSpinnerUsers();
-                                    // Create ArrayAdapter based on usernames from server's message
-                                    // Set this adapter on spinner
-                                    ArrayAdapter<String> adapter = new ArrayAdapter<>(parent, android.R.layout.simple_spinner_item, names);
-                                    adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-                                    spinner.setAdapter(adapter);
-                                }
-                            });
-                        } else if (line.startsWith("request from:")) {
-                            String rival = line.split(":")[1];
-
-                            parent.runOnUiThread(new Runnable() {
-                                @Override
-                                public void run() {
-                                    parent.sendMessage(parent.getEditUsername() + ":accepts:" + rival);
-                                }
-                            });
-                        } else if (line.startsWith("First move:")) {
-                            //game starts
-                            String first = line.split(":")[1];
-
-                            if (first.equals(parent.getEditUsername()))
-                                myTurn = true;
-                            else
-                                myTurn = false;
-
-                            parent.runOnUiThread(new Runnable() {
-                                @Override
-                                public void run() {
-                                    parent.startGame();
-                                }
-                            });
-
-                            clientState++;
+                if (line.startsWith("Users:")) {
+                    String[] names = line.split(":")[1].trim().split(" ");
+                    parent.runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            // Clean Spinner
+                            parent.getSpinnerUsers().setAdapter(null);
+                            // Fill Spinner with new data (users)
+                            Spinner spinner = parent.getSpinnerUsers();
+                            // Create ArrayAdapter based on usernames from server's message
+                            // Set this adapter on spinner
+                            ArrayAdapter<String> adapter = new ArrayAdapter<>(parent, android.R.layout.simple_spinner_item, names);
+                            adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+                            spinner.setAdapter(adapter);
                         }
-                    } catch (IOException ex) {
-                        MainActivity.serverNotAvailable();
+                    });
+                } else if (line.startsWith("request from:")) {
+                    String rival = line.split(":")[1];
 
-                        //parent.logout(); //disconnect from server and reset first state
-                        return;
-                    }
-                    break;
-                case 1:
-                    //game is on
+                    parent.runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            AlertDialog.Builder acceptance = new AlertDialog.Builder(parent);
 
-                    //return this thread (new will be started in GameActivity)
-                    //or wait until game is finished
-                    break;
-                default:
-                    break;
+                            acceptance.setTitle("Request for game");
+                            acceptance.setMessage("Accept request from " + rival + "?");
+
+                            acceptance.setPositiveButton("YES", new DialogInterface.OnClickListener() {
+                                @Override
+                                public void onClick(DialogInterface dialog, int which) {
+                                    parent.sendMessage(parent.getEditUsername() + ":accepts:" + rival);
+
+                                    //Close the dialog
+                                    dialog.dismiss();
+                                }
+                            });
+                            acceptance.setNegativeButton("NO", new DialogInterface.OnClickListener() {
+                                @Override
+                                public void onClick(DialogInterface dialog, int which) {
+                                    parent.sendMessage(parent.getEditUsername() + ":doesnt accept:" + rival);
+
+                                    //Close the dialog
+                                    dialog.dismiss();
+                                }
+                            });
+
+                            AlertDialog alert = acceptance.create();
+                            alert.show();
+                        }
+                    });
+                } else if (line.equals("rejected")) {
+                    parent.runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            parent.spinnerUsers.setEnabled(true);
+                            parent.buttonChoose.setEnabled(true);
+                        }
+                    });
+                } else if (line.startsWith("First move:")) {
+                    //game starts
+                    String first = line.split(":")[1];
+
+                    if (first.equals(parent.getEditUsername()))
+                        myTurn = "true";
+                    else
+                        myTurn = "false";
+
+                    parent.runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            parent.startGame(myTurn);
+                        }
+                    });
+                    return;
+                }
+            } catch (IOException ex) {
+                MainActivity.serverNotAvailable();
+
+                //parent.logout(); //disconnect from server and reset first state
+                return;
             }
         }
     }

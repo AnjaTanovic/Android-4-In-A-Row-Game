@@ -6,6 +6,8 @@ import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
 
+import android.app.AlertDialog;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
@@ -87,12 +89,29 @@ public class MainActivity extends AppCompatActivity {
         buttonChoose.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                String message = MainActivity.this.editUsername.getText().toString() + ":chooses:" +
-                        MainActivity.this.spinnerUsers.getSelectedItem().toString();
-                sendMessage(message);
+                if (!MainActivity.this.spinnerUsers.getSelectedItem().toString().equals(MainActivity.this.editUsername.getText().toString())) {
+                    String message = MainActivity.this.editUsername.getText().toString() + ":chooses:" +
+                            MainActivity.this.spinnerUsers.getSelectedItem().toString();
+                    sendMessage(message);
 
-                MainActivity.this.spinnerUsers.setEnabled(false);
-                MainActivity.this.buttonChoose.setEnabled(false);
+                    MainActivity.this.spinnerUsers.setEnabled(false);
+                    MainActivity.this.buttonChoose.setEnabled(false);
+                } else {
+                    AlertDialog.Builder acceptance = new AlertDialog.Builder(MainActivity.this);
+
+                    acceptance.setTitle("Error");
+                    acceptance.setMessage("You cannot play with yourself! Choose another player.");
+
+                    acceptance.setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface dialog, int which) {
+                            //Close the dialog
+                            dialog.dismiss();
+                        }
+                    });
+                    AlertDialog alert = acceptance.create();
+                    alert.show();
+                }
             }
         });
     }
@@ -169,9 +188,9 @@ public class MainActivity extends AppCompatActivity {
             }
     );
 
-    public void startGame() {
+    public void startGame(String firstPlays) {
         Intent intent = new Intent(MainActivity.this, GameActivity.class);
-        intent.putExtra(REQUEST_MESSAGE, "hello");
+        intent.putExtra(REQUEST_MESSAGE, firstPlays);
         activity2Launcher.launch(intent);
     }
 }

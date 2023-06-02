@@ -6,4 +6,5 @@
     <string name="buttonName">Ok</string>
     <string name="textChoose">Choose your rival</string>
     <string name="buttonChoose">Choose rival</string>
+    <string name="textTurn">Your turn!</string>
 </resources>
