@@ -2,6 +2,8 @@ package com.example.a4inarowgame;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import android.app.AlertDialog;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
@@ -131,5 +133,28 @@ public class GameActivity extends AppCompatActivity {
                 }
             }
         }).start();
+    }
+
+    public void showWinner(String winner) {
+        AlertDialog.Builder acceptance = new AlertDialog.Builder(GameActivity.this);
+
+        acceptance.setTitle("END OF GAME!");
+        String message = "Game is finished.\n" + "Winner is " +
+                winner.toUpperCase() + ".";
+        if (winner.equals(this.username))
+            message += "\nCONGRATULATIONS!!!";
+
+        acceptance.setMessage(message);
+
+        acceptance.setPositiveButton("OK", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                //Close the dialog
+                dialog.dismiss();
+                finish();
+            }
+        });
+        AlertDialog alert = acceptance.create();
+        alert.show();
     }
 }

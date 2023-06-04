@@ -78,6 +78,12 @@ public class GameReceiveMessageFromServer implements Runnable {
                             }
                             else if (line.split(" ")[0].equals("Winner")) {
                                 System.out.println("Winner is " + line.split(" ")[1]);
+                                parent.runOnUiThread(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        parent.showWinner(line.split(" ")[1]);
+                                    }
+                                });
                             }
                         }
                     } catch (IOException ex) {
