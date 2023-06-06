@@ -6,7 +6,6 @@ import android.app.AlertDialog;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Bundle;
-import android.view.View;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -23,9 +22,12 @@ public class GameActivity extends AppCompatActivity {
     private BufferedReader br;
     private PrintWriter pw;
 
+    Thread serverThread;
+
     String username;
     boolean myTurn;
     String color;
+    boolean playFirst;
 
     private final int rows = 6;
     private final int columns = 7;
@@ -51,10 +53,12 @@ public class GameActivity extends AppCompatActivity {
         if (nameFirst[1].equals("true")) {
             this.myTurn = true;
             this.color = "red";
+            this.playFirst = true;
         }
         else {
             this.myTurn = false;
             this.color = "blue";
+            this.playFirst = false;
         }
 
         //get socket, br and pw from singleton
@@ -75,12 +79,17 @@ public class GameActivity extends AppCompatActivity {
                 iv.setLayoutParams(layoutParams);
                 iv.setImageResource(R.drawable.neutral2);
                 iv.setOnClickListener((v)->{
-                    Toast.makeText(GameActivity.this, "Point  "+ v.getTag().toString() + " is clicked.", Toast.LENGTH_SHORT).show();
+
                     System.out.println(myTurn);
                     if (myTurn) {
                         String column = v.getTag().toString().split(",")[1];
                         sendMessage(username + ":" + column);
                         myTurn = false;
+
+                        Toast.makeText(GameActivity.this, "Column "+ column + " is chosen.", Toast.LENGTH_SHORT).show();
+                    }
+                    else {
+                        Toast.makeText(GameActivity.this, "Wait for your turn!", Toast.LENGTH_SHORT).show();
                     }
                 });
                 llrow.addView(iv);
@@ -97,7 +106,8 @@ public class GameActivity extends AppCompatActivity {
         }
 
         //create new thread to react on server's messages
-        new Thread(new GameReceiveMessageFromServer(GameActivity.this)).start();
+        serverThread = new Thread(new GameReceiveMessageFromServer(GameActivity.this));
+        serverThread.start();
     }
 
     public BufferedReader getBr() {
@@ -143,18 +153,61 @@ public class GameActivity extends AppCompatActivity {
                 winner.toUpperCase() + ".";
         if (winner.equals(this.username))
             message += "\nCONGRATULATIONS!!!";
+        else
+            sendMessage("You lost");
+
+        message += "\nPlay again?";
 
         acceptance.setMessage(message);
 
-        acceptance.setPositiveButton("OK", new DialogInterface.OnClickListener() {
+        acceptance.setPositiveButton("YES", new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialog, int which) {
                 //Close the dialog
                 dialog.dismiss();
-                finish();
+
+                if (GameActivity.this.playFirst) {
+                    myTurn = false;
+                    GameActivity.this.playFirst = false;
+                    textTurn.setText("Wait for your turn!");
+                }
+                else {
+                    myTurn = true;
+                    GameActivity.this.playFirst = true;
+                    textTurn.setText("Your turn!");
+                }
+
+                sendMessage("Play again");
+                resetFields();
+            }
+        });
+        acceptance.setNegativeButton("NO", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                //Close the dialog
+                dialog.dismiss();
+
+                sendMessage("New game");
+
+                finishGame();
             }
         });
         AlertDialog alert = acceptance.create();
         alert.show();
+    }
+
+    public void resetFields() {
+        for (int row = 0; row < rows; row++) {
+            for (int col = 0; col < columns; col++) {
+                fields.get(row + "," + col).setImageResource(R.drawable.neutral2);
+                fields.get(row + "," + col).setTag(row + "," + col + ",neutral");
+            }
+        }
+    }
+
+    public void finishGame() {
+        intent.putExtra(RESPONSE_MESSAGE, "OK");
+        setResult(RESULT_OK, intent);
+        finish();
     }
 }

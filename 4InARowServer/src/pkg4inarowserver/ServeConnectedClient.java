@@ -7,8 +7,6 @@ import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.net.Socket;
 import java.util.ArrayList;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 /**
  *
@@ -23,6 +21,7 @@ public class ServeConnectedClient implements Runnable {
     private ArrayList<ServeConnectedClient> allClients;
     private String username;
     private String rivalUsername;
+    private boolean playFirst;
     private int clientState;
     private boolean busy;
     private boolean myTurn;
@@ -31,6 +30,14 @@ public class ServeConnectedClient implements Runnable {
     private final int columns = 7;
     private int[][] fields; //0 - neutral fields, 1 - my fields, 2 - rival's fields
     private final int winningNumber = 4;
+    
+    public void setClientState(int clientState) {
+        this.clientState = clientState;
+    }
+
+    public int getClientState() {
+        return clientState;
+    }
     
     public boolean isBusy() {
         return busy;
@@ -56,10 +63,11 @@ public class ServeConnectedClient implements Runnable {
             //user data is still not known
             this.username = "";
             this.rivalUsername = "";
+            this.playFirst = false;
             this.clientState = 0;
             this.busy = false;
-        } catch (IOException ex) {
-            Logger.getLogger(ServeConnectedClient.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (Exception ex) {
+            System.out.println("Cannoot get data from server.");
         }
     }    
     
@@ -76,8 +84,10 @@ public class ServeConnectedClient implements Runnable {
             //1 - user chooses player
             //2 - game, get and forward player's move, check if game is finished
             //3 - game finished, play again? (from state 3 to state 1 or 2)
+            //4 - check if other user agrees with your decision
             switch (clientState) {
                 case 0:
+                    //System.out.println(this.username + " state:" + this.clientState);
                     try {
                         //wait for username
                         this.username = this.br.readLine();
@@ -88,7 +98,7 @@ public class ServeConnectedClient implements Runnable {
                             connectedClientsUpdateStatus();
                             clientState++;
                         }
-                    } catch (IOException ex) {
+                    } catch (Exception ex) {
                         System.out.println("Disconnected user: " + this.username);
                         
                         for (ServeConnectedClient cl : this.allClients) {
@@ -101,6 +111,7 @@ public class ServeConnectedClient implements Runnable {
                     }
                     break;
                 case 1:
+                    //System.out.println(this.username + " state:" + this.clientState);
                     try {
                         //wait for game initiaton and accepting
                         String init = this.br.readLine();
@@ -112,7 +123,7 @@ public class ServeConnectedClient implements Runnable {
                             String B = A_B[2].trim();
                             System.out.println(A + " chooses " + B);
                             this.rivalUsername = B;
-                            
+                                                        
                             String message = "request from:" + A;
                             for (ServeConnectedClient c : this.allClients) {
                                 if (c.getUsername().equals(B)) {
@@ -136,6 +147,7 @@ public class ServeConnectedClient implements Runnable {
                             resetFields();
                             this.rivalUsername = B;
                             this.myTurn = false;
+                            this.playFirst = false;
                             
                             clientState++;
                         }
@@ -156,9 +168,10 @@ public class ServeConnectedClient implements Runnable {
                             
                             resetFields();
                             myTurn = true;
+                            this.playFirst = true;
                             clientState++;
                         }
-                    } catch (IOException ex) {
+                    } catch (Exception ex) {
                         System.out.println("Disconnected user: " + this.username);
                         
                         for (ServeConnectedClient cl : this.allClients) {
@@ -171,53 +184,70 @@ public class ServeConnectedClient implements Runnable {
                     } 
                     break;
                 case 2:
+                    //System.out.println(this.username + " state:" + this.clientState);
                     try {
                         if (myTurn) {
-                            System.out.println("Game is on");
+                            System.out.println(this.username + "'s turn:");
                             //wait for move 
                             //format of move is:
                             //name:column
                             String move = this.br.readLine();
                             System.out.println(move);
-                            String nameColumn[] = move.split(":");
-                            System.out.println(nameColumn[0] + " made a move in column " + nameColumn[1] + ".");
+                            
+                            if (move.equals("You lost"))
+                                clientState++;
+                            else {
+                                String nameColumn[] = move.split(":");
+                                System.out.println(nameColumn[0] + " made a move in column " + nameColumn[1] + ".");
 
-                            boolean successful = false;
+                                boolean successful = false;
 
-                            if (nameColumn.length == 2 && nameColumn[0].equals(this.username)) {
-                                successful = fillFields(1, Integer.parseInt(nameColumn[1]));
+                                if (nameColumn.length == 2 && nameColumn[0].equals(this.username)) {
+                                    successful = fillFields(1, Integer.parseInt(nameColumn[1]));
 
-                                if (successful) {
-                                    for (ServeConnectedClient c : this.allClients) {
-                                        if (c.getUsername().equals(this.rivalUsername) || c.getUsername().equals(this.username)) {
-                                            c.pw.println(move);
+                                    if (successful) {
+                                        for (ServeConnectedClient c : this.allClients) {
+                                            if (c.getUsername().equals(this.rivalUsername) || c.getUsername().equals(this.username)) {
+                                                c.pw.println(move);
+                                            }
+                                        }
+                                        myTurn = false; 
+                                   }
+                                    else {
+                                        for (ServeConnectedClient c : this.allClients) {
+                                            if (c.getUsername().equals(this.username)) {
+                                                c.pw.println("Try again");
+                                            }
                                         }
                                     }
-                                    myTurn = false; 
-                               }
-                                else {
+                                    
                                     for (ServeConnectedClient c : this.allClients) {
-                                        if (c.getUsername().equals(this.username)) {
-                                            c.pw.println("Try again");
+                                        if (c.getUsername().equals(this.rivalUsername)) {
+                                            boolean ok = c.fillFields(2, Integer.parseInt(nameColumn[1]));
+                                            if (!ok)
+                                                System.out.println("Problem with fields logic");
+                                            break;
                                         }
                                     }
                                 }
-                            }
 
-                            String result = checkIfGameIsFinished();
-                            //if game is finished (somebody is winner or game is finished 
-                            //without the winner) -> send message
-                            //if game is still on -> message will not be sent
-                            sendMessageAboutWinner(result);
+                                String result = checkIfGameIsFinished();
+                                //if game is finished (somebody is winner or game is finished 
+                                //without the winner) -> send message
+                                //if game is still on -> message will not be sent
+                                sendMessageAboutWinner(result);
+                                if (result.startsWith("Winner")) 
+                                    clientState++;
+                            }
                         }
                         else {
                             //wait for my turn
                             String turn = this.br.readLine();
                             if (turn.equals("Your turn"))
-                            myTurn = true;
+                                myTurn = true;
                         }
                     
-                    } catch (IOException ex) {
+                    } catch (Exception ex) {
                         System.out.println("Disconnected user: " + this.username);
                         
                         for (ServeConnectedClient cl : this.allClients) {
@@ -230,7 +260,62 @@ public class ServeConnectedClient implements Runnable {
                     }
                     break;
                 case 3:
-                    //check if rivalUsername should be reseted
+                    //System.out.println(this.username + " state:" + this.clientState);
+                    //play again or choose rival again
+                    try {                       
+                        String line = this.br.readLine();
+
+                        if (line.equals("Play again") && clientState!= 1) {
+                            
+                            resetFields();
+                            if (this.playFirst) {
+                                this.myTurn = false;
+                                this.playFirst = false;
+                            }
+                            else {
+                                this.myTurn = true;
+                                this.playFirst = true;
+                            }
+                            
+                            clientState = 4;
+                        }
+                        else if (line.equals("New game")) {
+                            
+                            for (ServeConnectedClient c : this.allClients) {
+                                if (c.getUsername().equals(this.rivalUsername)) {
+                                    c.setClientState(1);
+                                    c.pw.println(line);
+                                }
+                            }
+                            this.pw.println("End");
+                            
+                            //this.rivalUsername = "";
+                            clientState = 1;
+                        }
+                    } catch (Exception ex) {
+                        System.out.println("Disconnected user: " + this.username);
+                        
+                        for (ServeConnectedClient cl : this.allClients) {
+                            if (cl.getUsername().equals(this.username)) {
+                                this.allClients.remove(cl);
+                                connectedClientsUpdateStatus();
+                                return;
+                            }
+                        }
+                    }
+                    break;
+                case 4:
+                    //check if your rival wants to play again
+                    for (ServeConnectedClient c : this.allClients) {
+                        if (c.getUsername().equals(this.rivalUsername)) {
+                            if (c.getClientState() == 4) {
+                                this.clientState = 2;
+                                c.setClientState(2);
+                                break;
+                            }
+                        }
+                    }
+                    break;
                 default:
                     break;
             }   
@@ -252,8 +337,8 @@ public class ServeConnectedClient implements Runnable {
         }
 
         //send this info to all connected and available clients
-        for (ServeConnectedClient svimaUpdateCB : this.allClients) {
-            svimaUpdateCB.pw.println(connectedUsers);
+        for (ServeConnectedClient update : this.allClients) {
+            update.pw.println(connectedUsers);
         }
 
         System.out.println(connectedUsers);
@@ -273,11 +358,16 @@ public class ServeConnectedClient implements Runnable {
         //check horizontally
         for (int i = 0; i < rows; i++) {
             for (int j = 0; j <= columns - winningNumber; j++) {
-                for (int k = 1; k < winningNumber; k++) {
-                    if (fields[i][j] == 0 || fields[i][j] != fields[i][j+k])
-                        break;
-                    if (k == winningNumber - 1)
-                        result = "Winner " + fields[i][j];
+                int color = fields[i][j];
+                if (color != 0) {
+                    for (int k = 1; k < winningNumber; k++) {
+                        if (color != fields[i][j+k])
+                            break;
+                        if (k == winningNumber - 1) {
+                            result = "Winner " + fields[i][j];
+                            System.out.println("Winning fields: from (" + i + "," + j + ") to (" + i + "," + (j + k) +")");
+                        }
+                    }
                 }
             }
         }
@@ -285,11 +375,16 @@ public class ServeConnectedClient implements Runnable {
         if (result.equals("NotFinished")) {
             for (int i = 0; i <= rows - winningNumber; i++) {
                 for (int j = 0; j < columns; j++) {
-                    for (int k = 1; k < winningNumber; k++) {
-                        if (fields[i][j] == 0 || fields[i][j] != fields[i+k][j])
-                            break;
-                        if (k == winningNumber - 1)
-                            result = "Winner " + fields[i][j];
+                    int color = fields[i][j];
+                    if (color != 0) {
+                        for (int k = 1; k < winningNumber; k++) {
+                            if (color != fields[i+k][j])
+                                break;
+                            if (k == winningNumber - 1) {
+                                result = "Winner " + fields[i][j];
+                                System.out.println("Winning fields: from (" + i + "," + j + ") to (" + (i + k) + "," + j + ")");
+                            }
+                        }
                     }
                 }
             }
@@ -298,11 +393,16 @@ public class ServeConnectedClient implements Runnable {
         if (result.equals("NotFinished")) {
             for (int i = 0; i <= rows - winningNumber; i++) {
                 for (int j = 0; j <= columns - winningNumber; j++) {
-                    for (int k = 1; k < winningNumber; k++) {
-                        if (fields[i][j] == 0 || fields[i][j] != fields[i+k][j+k])
-                            break;
-                        if (k == winningNumber - 1)
-                            result = "Winner " + fields[i][j];
+                    int color = fields[i][j];
+                    if (color != 0) {
+                        for (int k = 1; k < winningNumber; k++) {
+                            if (color != fields[i+k][j+k])
+                                break;
+                            if (k == winningNumber - 1) {
+                                result = "Winner " + fields[i][j];
+                                System.out.println("Winning fields: from (" + i + "," + j + ") to (" + (i + k) + "," + (j + k) + ")");
+                            }
+                        }
                     }
                 }
             }
@@ -310,11 +410,16 @@ public class ServeConnectedClient implements Runnable {
         if (result.equals("NotFinished")) {
             for (int i = 0; i <= rows - winningNumber; i++) {
                 for (int j = winningNumber - 1; j < columns; j++) {
-                    for (int k = 1; k < winningNumber; k++) {
-                        if (fields[i][j] == 0 || fields[i][j] != fields[i+k][j-k])
-                            break;
-                        if (k == winningNumber - 1)
-                            result = "Winner " + fields[i][j];
+                    int color = fields[i][j];
+                    if (color != 0) {
+                        for (int k = 1; k < winningNumber; k++) {
+                            if (color != fields[i+k][j-k])
+                                break;
+                            if (k == winningNumber - 1) {
+                                result = "Winner " + fields[i][j];
+                                System.out.println("Winning fields: from (" + i + "," + j + ") to (" + (i + k) + "," + (j - k) + ")");
+                            }
+                        }
                     }
                 }
             }

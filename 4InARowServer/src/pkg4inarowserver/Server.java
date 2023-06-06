@@ -4,8 +4,6 @@ import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 /**
  *
@@ -42,7 +40,7 @@ public class Server {
                 System.out.println("Waiting for new clients...");
                 client = this.ssocket.accept();
             } catch (IOException ex) {
-                Logger.getLogger(Server.class.getName()).log(Level.SEVERE, null, ex);
+                System.out.println("Problem with client's socket!");
             }
             if (client != null) {
                 System.out.println("Client is successfully connected.");
@@ -65,7 +63,8 @@ public class Server {
             this.port = port;
             this.ssocket = new ServerSocket(port);
         } catch (IOException ex) {
-            Logger.getLogger(Server.class.getName()).log(Level.SEVERE, null, ex);
+            System.out.println("Cannot create server");
+            System.exit(0);
         }
     }
 

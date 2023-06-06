@@ -183,6 +183,11 @@ public class MainActivity extends AppCompatActivity {
                         Intent data = result.getData();
                         String response;
                         response = data.getStringExtra(GameActivity.RESPONSE_MESSAGE);
+
+                        if (response.equals("OK")) {
+                            //create new thread to react on server's messages
+                            new Thread(new MainReceiveMessageFromServer(MainActivity.this)).start();
+                        }
                     }
                 }
             }

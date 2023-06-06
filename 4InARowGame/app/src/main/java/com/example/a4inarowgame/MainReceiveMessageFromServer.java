@@ -107,6 +107,9 @@ public class MainReceiveMessageFromServer implements Runnable {
                             if (turn)
                                 parent.sendMessage("request accepted");
                             parent.startGame(nameTurn);
+
+                            parent.spinnerUsers.setEnabled(true);
+                            parent.buttonChoose.setEnabled(true);
                         }
                     });
                     return;
@@ -114,7 +117,25 @@ public class MainReceiveMessageFromServer implements Runnable {
             } catch (IOException ex) {
                 MainActivity.serverNotAvailable();
 
-                //parent.logout(); //disconnect from server and reset first state
+                parent.runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        AlertDialog.Builder acceptance = new AlertDialog.Builder(parent);
+
+                        acceptance.setTitle("Server is not available");
+                        acceptance.setMessage("Server is not available! Restart application and try again.");
+
+                        acceptance.setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface dialog, int which) {
+                                //Close the dialog
+                                dialog.dismiss();
+                            }
+                        });
+                        AlertDialog alert = acceptance.create();
+                        alert.show();
+                    }
+                });
                 return;
             }
         }
